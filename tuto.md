@@ -1,109 +1,161 @@
-# Guide Complet - Développement d'un Plugin Minecraft Paper
+# Guide Complet - Développement d'un Plugin Minecraft Paper avec Maven
 
 > Ce tutoriel est destiné aux développeurs souhaitant créer un plugin **Paper** moderne en Java.
 >
 > **Version recommandée :** Paper 1.21+
 >
-> Nous utiliserons :
+> Technologies utilisées :
 >
 > - Java 21
-> - Gradle (ou Maven)
+> - Maven
 > - API Paper
-> - Brigadier (CommandAPI de Paper)
+> - Brigadier (Command API de Paper)
+> - Adventure API
 > - Events
 > - Scheduler
 > - Configuration YAML
-> - Components Adventure
 
 ---
 
 # Sommaire
 
-1. Création du projet
-2. plugin.yml
-3. Classe principale
-4. Les commandes avec Brigadier
-5. Les Events
-6. Les Schedulers
-7. Configurations
-8. Adventure API
-9. Les Players
-10. Les Mondes
-11. Les Inventaires
-12. Les Items
-13. Les Particules
-14. Les Sons
-15. Les Entités
-16. Les Blocs
-17. Les BossBars
-18. Les Scoreboards
-19. Les Permissions
-20. Les Metadata / PersistentDataContainer
-21. Les utilitaires indispensables
-22. Les imports utiles à connaître
+1. Création du projet Maven
+2. Structure du projet
+3. Configuration Maven
+4. plugin.yml
+5. Classe principale
+6. Les Events
+7. Les commandes
+8. Scheduler
+9. Configuration YAML
+10. Adventure API
+11. Les joueurs
+12. Les inventaires
+13. Les items
+14. Les mondes
+15. Les entités
+16. Les particules
+17. Les sons
+18. Les BossBars
+19. Les Scoreboards
+20. Les Permissions
+21. PersistentDataContainer
+22. Imports utiles
+23. Bonnes pratiques
 
 ---
 
 # 1. Création du projet
 
-Arborescence :
+Créer un projet Maven.
+
+Arborescence recommandée :
 
 ```
-src
- ├── main
- │    ├── java
- │    │      fr.monplugin
- │    │          Main.java
- │    │          commands/
- │    │          listeners/
- │    │          utils/
- │    └── resources
- │           plugin.yml
-```
-
----
-
-# build.gradle
-
-```gradle
-plugins {
-    id 'java'
-}
-
-group = 'fr.monplugin'
-version = '1.0'
-
-repositories {
-    mavenCentral()
-
-    maven {
-        url = "https://repo.papermc.io/repository/maven-public/"
-    }
-}
-
-dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
-}
-
-java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
-}
+MonPlugin/
+│
+├── src/
+│   └── main/
+│       ├── java/
+│       │   └── fr/
+│       │       └── monplugin/
+│       │           ├── Main.java
+│       │           ├── commands/
+│       │           ├── listeners/
+│       │           ├── managers/
+│       │           ├── services/
+│       │           └── utils/
+│       │
+│       └── resources/
+│           └── plugin.yml
+│
+├── pom.xml
+│
+└── .gitignore
 ```
 
 ---
 
-# plugin.yml
+# 2. Configuration Maven
+
+## pom.xml
+
+```xml
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>fr.monplugin</groupId>
+    <artifactId>MonPlugin</artifactId>
+    <version>1.0</version>
+
+    <properties>
+
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    </properties>
+
+    <repositories>
+
+        <repository>
+
+            <id>papermc</id>
+
+            <url>https://repo.papermc.io/repository/maven-public/</url>
+
+        </repository>
+
+    </repositories>
+
+    <dependencies>
+
+        <dependency>
+
+            <groupId>io.papermc.paper</groupId>
+
+            <artifactId>paper-api</artifactId>
+
+            <version>1.21.1-R0.1-SNAPSHOT</version>
+
+            <scope>provided</scope>
+
+        </dependency>
+
+    </dependencies>
+
+</project>
+```
+
+---
+
+# 3. plugin.yml
+
+Créer un fichier :
+
+```
+src/main/resources/plugin.yml
+```
+
+Contenu :
 
 ```yaml
 name: MonPlugin
 version: 1.0
 main: fr.monplugin.Main
+
 api-version: '1.21'
 ```
 
 ---
 
-# Classe principale
+# 4. Classe principale
 
 ```java
 public final class Main extends JavaPlugin {
@@ -123,7 +175,9 @@ public final class Main extends JavaPlugin {
 
 ---
 
-# Accéder au plugin partout
+# Singleton du plugin
+
+Très pratique pour accéder au plugin partout.
 
 ```java
 public class Main extends JavaPlugin {
@@ -132,21 +186,47 @@ public class Main extends JavaPlugin {
 
     @Override
     public void onEnable() {
+
         instance = this;
+
     }
 
     public static Main get() {
+
         return instance;
+
     }
 
 }
 ```
 
+Utilisation :
+
+```java
+Main.get();
+```
+
 ---
 
-# 2. Les Events
+# Logger
 
-Tous les listeners implémentent :
+```java
+getLogger().info("Plugin démarré !");
+```
+
+---
+
+# Sauvegarder la configuration
+
+```java
+saveDefaultConfig();
+```
+
+---
+
+# 5. Les Events
+
+Créer une classe :
 
 ```java
 public class PlayerListener implements Listener {
@@ -154,15 +234,26 @@ public class PlayerListener implements Listener {
 }
 ```
 
-Puis :
+Puis enregistrer :
 
 ```java
-getServer().getPluginManager().registerEvents(new PlayerListener(), this);
+@Override
+public void onEnable() {
+
+    Bukkit.getPluginManager().registerEvents(
+
+            new PlayerListener(),
+
+            this
+
+    );
+
+}
 ```
 
 ---
 
-# Event Join
+# PlayerJoinEvent
 
 ```java
 @EventHandler
@@ -175,7 +266,7 @@ public void onJoin(PlayerJoinEvent event){
 
 ---
 
-# Event Quit
+# PlayerQuitEvent
 
 ```java
 @EventHandler
@@ -186,7 +277,7 @@ public void onQuit(PlayerQuitEvent event){
 
 ---
 
-# Event Interact
+# PlayerInteractEvent
 
 ```java
 @EventHandler
@@ -203,13 +294,11 @@ public void onInteract(PlayerInteractEvent event){
 
 ---
 
-# Event Block Break
+# BlockBreakEvent
 
 ```java
 @EventHandler
 public void onBreak(BlockBreakEvent event){
-
-    Player player = event.getPlayer();
 
     Block block = event.getBlock();
 
@@ -218,7 +307,7 @@ public void onBreak(BlockBreakEvent event){
 
 ---
 
-# Event Place
+# BlockPlaceEvent
 
 ```java
 @EventHandler
@@ -229,7 +318,7 @@ public void onPlace(BlockPlaceEvent event){
 
 ---
 
-# Event Damage
+# EntityDamageEvent
 
 ```java
 @EventHandler
@@ -240,7 +329,7 @@ public void onDamage(EntityDamageEvent event){
 
 ---
 
-# Event Damage Player
+# EntityDamageByEntityEvent
 
 ```java
 @EventHandler
@@ -255,7 +344,7 @@ public void onDamage(EntityDamageByEntityEvent event){
 
 ---
 
-# Annuler un event
+# Annuler un Event
 
 ```java
 event.setCancelled(true);
@@ -263,56 +352,26 @@ event.setCancelled(true);
 
 ---
 
-# 3. Les commandes avec Brigadier
+# 6. Les commandes
 
-Paper possède un système moderne basé sur Brigadier.
+> **À partir de Paper 1.21, il est recommandé d'utiliser la Command API basée sur Brigadier.**
 
-En 1.21+, il est conseillé d'utiliser les commandes Paper natives plutôt que les anciennes méthodes `CommandExecutor`.
-
-Exemple simplifié :
+Exemple simple :
 
 ```java
-public class ExampleCommands {
+Commands.literal("heal")
 
-    public static LiteralCommandNode<CommandSourceStack> create() {
+    .requires(source -> source.getSender().hasPermission("heal.use"))
 
-        return Commands.literal("heal")
+    .executes(context -> {
 
-                .requires(source -> source.getSender().hasPermission("heal.use"))
+        Player player = (Player) context.getSource().getSender();
 
-                .executes(context -> {
+        player.setHealth(20);
 
-                    Player player = (Player) context.getSource().getSender();
+        return Command.SINGLE_SUCCESS;
 
-                    player.setHealth(20);
-
-                    return Command.SINGLE_SUCCESS;
-
-                })
-
-                .build();
-
-    }
-
-}
-```
-
-Puis enregistrer la commande lors de l'initialisation prévue par Paper.
-
----
-
-# Arguments
-
-```java
-Commands.argument("joueur", EntityArgument.player())
-```
-
-```java
-Commands.argument("nombre", IntegerArgumentType.integer())
-```
-
-```java
-Commands.argument("texte", StringArgumentType.greedyString())
+    });
 ```
 
 ---
@@ -322,12 +381,28 @@ Commands.argument("texte", StringArgumentType.greedyString())
 ```java
 .suggests((context, builder) -> {
 
-    builder.suggest("hello");
-    builder.suggest("world");
+    builder.suggest("survival");
+    builder.suggest("creative");
 
     return builder.buildFuture();
 
 })
+```
+
+---
+
+# Arguments
+
+```java
+Commands.argument("player", EntityArgument.player())
+```
+
+```java
+Commands.argument("amount", IntegerArgumentType.integer())
+```
+
+```java
+Commands.argument("message", StringArgumentType.greedyString())
 ```
 
 ---
@@ -340,24 +415,42 @@ Commands.argument("texte", StringArgumentType.greedyString())
 
 ---
 
-# 4. Scheduler
+# 7. Scheduler
 
-Exécuter plus tard
+Exécuter plus tard :
 
 ```java
-Bukkit.getScheduler().runTaskLater(plugin, () -> {
+Bukkit.getScheduler().runTaskLater(
 
-},20L);
+        Main.get(),
+
+        () -> {
+
+        },
+
+        20L
+
+);
 ```
 
 ---
 
-Toutes les secondes
+Toutes les secondes :
 
 ```java
-Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+Bukkit.getScheduler().runTaskTimer(
 
-},0L,20L);
+        Main.get(),
+
+        () -> {
+
+        },
+
+        0L,
+
+        20L
+
+);
 ```
 
 ---
@@ -365,42 +458,48 @@ Bukkit.getScheduler().runTaskTimer(plugin, () -> {
 Async
 
 ```java
-Bukkit.getScheduler().runTaskAsynchronously(plugin,()->{
+Bukkit.getScheduler().runTaskAsynchronously(
 
-});
+        Main.get(),
+
+        () -> {
+
+        }
+
+);
 ```
 
 ---
 
-# 5. Configuration YAML
-
-Créer
-
-```java
-saveDefaultConfig();
-```
+# 8. Configuration YAML
 
 Lire
 
 ```java
 String name = getConfig().getString("name");
+```
 
-int number = getConfig().getInt("coins");
+```java
+int coins = getConfig().getInt("coins");
+```
 
+```java
 boolean enabled = getConfig().getBoolean("enabled");
 ```
+
+---
 
 Modifier
 
 ```java
-getConfig().set("coins",50);
+getConfig().set("coins", 150);
 
 saveConfig();
 ```
 
 ---
 
-# 6. Adventure API
+# 9. Adventure API
 
 Message
 
@@ -408,34 +507,31 @@ Message
 player.sendMessage(Component.text("Bonjour"));
 ```
 
+---
+
 Couleur
 
 ```java
 Component.text("Hello")
-.color(NamedTextColor.GREEN);
-```
 
-Gras
-
-```java
-.decorate(TextDecoration.BOLD);
+        .color(NamedTextColor.GREEN);
 ```
 
 ---
 
-# MiniMessage
+MiniMessage
 
 ```java
 MiniMessage.miniMessage().deserialize(
 
-"<green>Hello <red>World"
+        "<green>Hello <yellow>World"
 
 );
 ```
 
 ---
 
-# 7. Joueurs
+# 10. Les Joueurs
 
 Nom
 
@@ -455,7 +551,7 @@ Vie
 player.setHealth(20);
 ```
 
-Food
+Nourriture
 
 ```java
 player.setFoodLevel(20);
@@ -464,7 +560,7 @@ player.setFoodLevel(20);
 XP
 
 ```java
-player.giveExp(100);
+player.giveExp(500);
 ```
 
 Téléportation
@@ -481,80 +577,38 @@ player.setGameMode(GameMode.CREATIVE);
 
 ---
 
-# Inventaire
+# 11. Inventaire
+
+Récupérer
 
 ```java
-player.getInventory();
+Inventory inventory = player.getInventory();
 ```
 
-Ajouter
+Ajouter un item
 
 ```java
-player.getInventory().addItem(item);
+inventory.addItem(item);
 ```
 
-Clear
+Vider
 
 ```java
-player.getInventory().clear();
-```
-
----
-
-# 8. Items
-
-Créer
-
-```java
-ItemStack sword = new ItemStack(Material.DIAMOND_SWORD);
-```
-
-Meta
-
-```java
-ItemMeta meta = sword.getItemMeta();
-
-meta.displayName(Component.text("Epic Sword"));
-
-sword.setItemMeta(meta);
-```
-
-Enchantement
-
-```java
-meta.addEnchant(
-        Enchantment.SHARPNESS,
-        5,
-        true
-);
+inventory.clear();
 ```
 
 ---
 
-# Lore
+Créer un GUI
 
 ```java
-meta.lore(List.of(
+Inventory gui = Bukkit.createInventory(
 
-Component.text("Ligne 1"),
+        null,
 
-Component.text("Ligne 2")
+        27,
 
-));
-```
-
----
-
-# 9. Inventaires personnalisés
-
-```java
-Inventory inv = Bukkit.createInventory(
-
-null,
-
-27,
-
-Component.text("Menu")
+        Component.text("Menu")
 
 );
 ```
@@ -562,33 +616,73 @@ Component.text("Menu")
 Ouvrir
 
 ```java
-player.openInventory(inv);
-```
-
-Event
-
-```java
-InventoryClickEvent
+player.openInventory(gui);
 ```
 
 ---
 
-# 10. Les Mondes
+# 12. Les Items
+
+Créer
+
+```java
+ItemStack sword = new ItemStack(Material.DIAMOND_SWORD);
+```
+
+---
+
+Modifier
+
+```java
+ItemMeta meta = sword.getItemMeta();
+
+meta.displayName(
+
+        Component.text("Épée Légendaire")
+
+);
+
+sword.setItemMeta(meta);
+```
+
+---
+
+Enchantement
+
+```java
+meta.addEnchant(
+
+        Enchantment.SHARPNESS,
+
+        5,
+
+        true
+
+);
+```
+
+---
+
+Lore
+
+```java
+meta.lore(List.of(
+
+        Component.text("Très puissante"),
+
+        Component.text("Unique")
+
+));
+```
+
+---
+
+# 13. Les Mondes
+
+Récupérer
 
 ```java
 World world = Bukkit.getWorld("world");
-```
-
-Spawn
-
-```java
-world.getSpawnLocation();
-```
-
-Changer météo
-
-```java
-world.setStorm(true);
 ```
 
 Temps
@@ -597,48 +691,32 @@ Temps
 world.setTime(6000);
 ```
 
----
-
-# 11. Particules
+Météo
 
 ```java
-player.spawnParticle(
-
-Particle.FLAME,
-
-player.getLocation(),
-
-100
-
-);
+world.setStorm(true);
 ```
-
----
-
-# 12. Sons
-
-```java
-player.playSound(
-
-player,
-
-Sound.ENTITY_PLAYER_LEVELUP,
-
-1,
-
-1
-
-);
-```
-
----
-
-# 13. Les Entités
 
 Spawn
 
 ```java
-Zombie zombie = world.spawn(location, Zombie.class);
+Location spawn = world.getSpawnLocation();
+```
+
+---
+
+# 14. Les Entités
+
+Spawn
+
+```java
+Zombie zombie = world.spawn(
+
+        location,
+
+        Zombie.class
+
+);
 ```
 
 Nom
@@ -646,7 +724,7 @@ Nom
 ```java
 zombie.customName(
 
-Component.text("Boss")
+        Component.text("Boss")
 
 );
 ```
@@ -659,32 +737,54 @@ zombie.setAI(false);
 
 ---
 
-# 14. Les Blocs
+# 15. Les Particules
 
 ```java
-Block block = location.getBlock();
-```
+player.spawnParticle(
 
-Changer
+        Particle.FLAME,
 
-```java
-block.setType(Material.DIAMOND_BLOCK);
+        player.getLocation(),
+
+        100
+
+);
 ```
 
 ---
 
-# 15. BossBar
+# 16. Les Sons
+
+```java
+player.playSound(
+
+        player,
+
+        Sound.ENTITY_PLAYER_LEVELUP,
+
+        1f,
+
+        1f
+
+);
+```
+
+---
+
+# 17. BossBar
+
+Créer
 
 ```java
 BossBar bossBar = BossBar.bossBar(
 
-Component.text("Boss"),
+        Component.text("Boss"),
 
-1f,
+        1f,
 
-BossBar.Color.RED,
+        BossBar.Color.RED,
 
-BossBar.Overlay.PROGRESS
+        BossBar.Overlay.PROGRESS
 
 );
 ```
@@ -697,23 +797,17 @@ player.showBossBar(bossBar);
 
 ---
 
-# 16. Scoreboard
+# 18. Scoreboard
 
 ```java
-ScoreboardManager manager =
-Bukkit.getScoreboardManager();
-```
+ScoreboardManager manager = Bukkit.getScoreboardManager();
 
-Créer
-
-```java
-Scoreboard scoreboard =
-manager.getNewScoreboard();
+Scoreboard scoreboard = manager.getNewScoreboard();
 ```
 
 ---
 
-# 17. Permissions
+# 19. Permissions
 
 ```java
 player.hasPermission("admin.use");
@@ -721,19 +815,18 @@ player.hasPermission("admin.use");
 
 ---
 
-# 18. PersistentDataContainer
-
-Permet de stocker des données dans :
-
-- Items
-- Entités
-- Joueurs
+# 20. PersistentDataContainer
 
 Créer une clé
 
 ```java
-NamespacedKey key =
-new NamespacedKey(plugin,"coins");
+NamespacedKey key = new NamespacedKey(
+
+        Main.get(),
+
+        "coins"
+
+);
 ```
 
 Sauvegarder
@@ -741,11 +834,11 @@ Sauvegarder
 ```java
 container.set(
 
-key,
+        key,
 
-PersistentDataType.INTEGER,
+        PersistentDataType.INTEGER,
 
-50
+        100
 
 );
 ```
@@ -753,76 +846,29 @@ PersistentDataType.INTEGER,
 Lire
 
 ```java
-container.get(
+Integer coins = container.get(
 
-key,
+        key,
 
-PersistentDataType.INTEGER
+        PersistentDataType.INTEGER
 
 );
 ```
 
 ---
 
-# 19. Les utilitaires utiles
-
-Obtenir un joueur
-
-```java
-Player player =
-Bukkit.getPlayer("Pseudo");
-```
-
-Tous les joueurs
-
-```java
-Bukkit.getOnlinePlayers();
-```
-
-Broadcast
-
-```java
-Bukkit.broadcast(
-
-Component.text("Hello")
-
-);
-```
-
-Logger
-
-```java
-getLogger().info("Hello");
-```
-
----
-
-# 20. Les imports indispensables
+# 21. Les imports utiles
 
 ## Bukkit
 
 ```java
 import org.bukkit.Bukkit;
-```
-
-```java
 import org.bukkit.Location;
-```
-
-```java
 import org.bukkit.World;
-```
-
-```java
 import org.bukkit.Material;
-```
-
-```java
 import org.bukkit.Sound;
-```
-
-```java
 import org.bukkit.Particle;
+import org.bukkit.GameMode;
 ```
 
 ---
@@ -831,10 +877,6 @@ import org.bukkit.Particle;
 
 ```java
 import org.bukkit.entity.Player;
-```
-
-```java
-import org.bukkit.GameMode;
 ```
 
 ---
@@ -851,13 +893,7 @@ import org.bukkit.entity.*;
 
 ```java
 import org.bukkit.inventory.Inventory;
-```
-
-```java
 import org.bukkit.inventory.ItemStack;
-```
-
-```java
 import org.bukkit.inventory.meta.ItemMeta;
 ```
 
@@ -867,61 +903,25 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 ```java
 import org.bukkit.event.Listener;
-```
-
-```java
 import org.bukkit.event.EventHandler;
-```
 
-```java
 import org.bukkit.event.player.*;
-```
-
-```java
 import org.bukkit.event.block.*;
-```
-
-```java
 import org.bukkit.event.entity.*;
-```
-
-```java
 import org.bukkit.event.inventory.*;
 ```
 
 ---
 
-## Components
+## Adventure
 
 ```java
 import net.kyori.adventure.text.Component;
-```
 
-```java
 import net.kyori.adventure.text.format.NamedTextColor;
-```
 
-```java
-import net.kyori.adventure.text.format.TextDecoration;
-```
-
-```java
 import net.kyori.adventure.text.minimessage.MiniMessage;
-```
 
----
-
-## Scheduler
-
-```java
-import org.bukkit.scheduler.BukkitRunnable;
-```
-
----
-
-## BossBar
-
-```java
 import net.kyori.adventure.bossbar.BossBar;
 ```
 
@@ -935,53 +935,66 @@ import org.bukkit.configuration.file.FileConfiguration;
 
 ---
 
-## PersistentData
+## Scheduler
 
 ```java
-import org.bukkit.persistence.PersistentDataContainer;
-```
-
-```java
-import org.bukkit.persistence.PersistentDataType;
-```
-
-```java
-import org.bukkit.NamespacedKey;
+import org.bukkit.scheduler.BukkitRunnable;
 ```
 
 ---
 
-# Bonnes pratiques
+## PersistentData
 
-- Utiliser Adventure au lieu des anciennes chaînes colorées (`ChatColor`).
-- Éviter les tâches synchrones lourdes.
-- Préférer `PersistentDataContainer` aux métadonnées temporaires.
-- Toujours vérifier les `null`.
-- Organiser le code par packages (`commands`, `listeners`, `services`, `utils`).
-- Séparer la logique métier des listeners et des commandes.
-- Utiliser des permissions plutôt que des vérifications de nom de joueur.
-- Favoriser les composants immuables (`Component`) pour les messages.
-- Éviter les accès répétés à la configuration en mettant en cache les valeurs si nécessaire.
+```java
+import org.bukkit.NamespacedKey;
+
+import org.bukkit.persistence.PersistentDataContainer;
+
+import org.bukkit.persistence.PersistentDataType;
+```
+
+---
+
+# 22. Bonnes pratiques
+
+- Utiliser **Java 21** avec Paper.
+- Préférer la **Command API Paper (Brigadier)** aux anciennes commandes Bukkit.
+- Utiliser **Adventure API** au lieu de `ChatColor`.
+- Éviter les traitements lourds sur le thread principal.
+- Toujours vérifier les valeurs `null`.
+- Organiser le projet par packages (`commands`, `listeners`, `services`, `utils`, `managers`...).
+- Stocker les données persistantes avec `PersistentDataContainer`.
+- Limiter les accès répétés à la configuration en mettant les valeurs importantes en cache.
+- Utiliser les permissions plutôt que des vérifications sur le pseudo d'un joueur.
+- Écrire des classes courtes avec une responsabilité unique.
 
 ---
 
 # Conclusion
 
-Avec ces bases, vous pouvez développer la majorité des plugins Paper modernes :
+Vous disposez maintenant d'une base solide pour développer un plugin **Paper** avec **Maven**.
 
-- ✅ Commandes Brigadier
+Les principaux concepts abordés sont :
+
+- ✅ Projet Maven
+- ✅ Configuration `pom.xml`
+- ✅ `plugin.yml`
+- ✅ Classe principale
 - ✅ Events
+- ✅ Scheduler
+- ✅ Configurations YAML
+- ✅ Adventure API
+- ✅ Joueurs
 - ✅ Inventaires
 - ✅ Items personnalisés
 - ✅ Entités
+- ✅ Mondes
 - ✅ Particules
 - ✅ Sons
 - ✅ BossBars
 - ✅ Scoreboards
-- ✅ Configurations
-- ✅ Scheduler
+- ✅ Permissions
 - ✅ PersistentDataContainer
-- ✅ Adventure API
-- ✅ Structure de projet propre
+- ✅ Imports les plus utilisés
 
-Ce socle couvre la plupart des mécaniques utilisées dans les plugins Paper modernes et constitue une excellente base pour créer des systèmes plus avancés (GUI interactives, mini-jeux, RPG, économie, quêtes, etc.).
+Cette base couvre la majorité des fonctionnalités utilisées dans les plugins Paper modernes et constitue un excellent point de départ avant d'aborder des sujets plus avancés comme les commandes Brigadier, les GUI complexes, les systèmes RPG ou les mini-jeux.
